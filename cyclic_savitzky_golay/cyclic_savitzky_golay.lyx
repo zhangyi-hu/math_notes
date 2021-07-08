@@ -1,0 +1,626 @@
+#LyX 2.3 created this file. For more info see http://www.lyx.org/
+\lyxformat 544
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures true
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize letterpaper
+\use_geometry true
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\use_minted 0
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\leftmargin 2cm
+\topmargin 3cm
+\rightmargin 2cm
+\bottommargin 2cm
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Cyclic Savitzky-Golay Smoother
+\end_layout
+
+\begin_layout Author
+Zhangyi Hu
+\end_layout
+
+\begin_layout Date
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+
+\backslash
+today{}
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Abstract
+Savitzky-Golay filter is a highly efficient low-pass filter suitable for
+ roughly equidistant data.
+ In this filter, a bandwidth 
+\begin_inset Formula $b$
+\end_inset
+
+ is specified 
+\begin_inset Formula $\left(b=2r+1\right)$
+\end_inset
+
+ and each point 
+\begin_inset Formula $x_{i}$
+\end_inset
+
+ has its smoothed value a result of linear transform from points within
+ this bandwidth 
+\begin_inset Formula $\hat{x}_{i}=\sum_{j=i-d}^{j=i+d}a_{j}x_{j}$
+\end_inset
+
+.
+ This formula only handles points 
+\begin_inset Formula $r$
+\end_inset
+
+ steps away from the two end points 
+\begin_inset Formula $\left(r<i<I-r\right)$
+\end_inset
+
+.
+ Two separate polynomial fits are conducted at two edges to handle those
+ points where the key benefit of Savitzky-Golay is lost: polynomials are
+ no-longer evaluated at 
+\begin_inset Formula $0$
+\end_inset
+
+.
+ We introduce this cyclic Savitzky-Golay method, where edges points are
+ handled exactly the same way as inner points.
+ We enjoy the benefit that smoothed values are fitted polynomials evaluated
+ at 
+\begin_inset Formula $0$
+\end_inset
+
+, while at the same time pay the cost of one additional condition: the data
+ need to be assumed to flatten out at both ends.
+ 
+\end_layout
+
+\begin_layout Section
+Introduction
+\end_layout
+
+\begin_layout Standard
+Savitzky-Golay is a local polynomial regression smoother parameterized by
+ only two integers: the bandwidth 
+\begin_inset Formula $b$
+\end_inset
+
+ (or radius 
+\begin_inset Formula $r$
+\end_inset
+
+) and the order of the polynomial 
+\begin_inset Formula $d$
+\end_inset
+
+.
+ To find the smoothed value of 
+\begin_inset Formula $x_{i}$
+\end_inset
+
+, we first fit the data from 
+\begin_inset Formula $x_{i-d}$
+\end_inset
+
+ to 
+\begin_inset Formula $x_{i+d}$
+\end_inset
+
+ using equidistant integer coordinates from 
+\begin_inset Formula $-d$
+\end_inset
+
+ to 
+\begin_inset Formula $d$
+\end_inset
+
+.
+ Suppose the polynomial fitted has coefficients at 
+\begin_inset Formula $n$
+\end_inset
+
+th order being 
+\begin_inset Formula $a_{n}$
+\end_inset
+
+, then the smoothed value is just 
+\begin_inset Formula $\hat{x}_{i}=a_{0}$
+\end_inset
+
+, because the data 
+\begin_inset Formula $x_{i}$
+\end_inset
+
+ corresponds with a coordinate of 
+\begin_inset Formula $0$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+Without considering the edge points, let's first derive the smoothing linear
+ transformation.
+ The polynomial we want to find is:
+\begin_inset Formula 
+\[
+f\left(k\right)=\sum_{n=0}^{d}a_{n}k^{n}.
+\]
+
+\end_inset
+
+At point 
+\begin_inset Formula $x_{i}$
+\end_inset
+
+ the least square problem is:
+\begin_inset Formula 
+\[
+\arg\min_{a_{n}}\sum_{k=-r}^{r}\left(f\left(k\right)-x_{i+k}\right)^{2}.
+\]
+
+\end_inset
+
+In matrix notation:
+\begin_inset Formula 
+\[
+\arg\min_{a}\left(K\cdot a-x\right)^{T}\left(K\cdot a-x\right),
+\]
+
+\end_inset
+
+where
+\begin_inset Formula 
+\begin{align*}
+K & =\left[\begin{array}{ccc}
+\left(-r\right)^{0} & \cdots & \left(-r\right)^{d}\\
+\vdots & \vdots & \vdots\\
+r^{0} & \cdots & r^{d}
+\end{array}\right],\\
+a & =\left[\begin{array}{c}
+a_{0}\\
+\vdots\\
+a_{d}
+\end{array}\right],\\
+x & =\left[\begin{array}{c}
+x_{i-r}\\
+\vdots\\
+x_{i+r}
+\end{array}\right].
+\end{align*}
+
+\end_inset
+
+The least-square minimizer 
+\begin_inset Formula $\hat{a}$
+\end_inset
+
+ is:
+\begin_inset Formula 
+\[
+\hat{a}=\left(K^{T}K\right)^{-1}K^{T}x.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The smoothed 
+\begin_inset Formula $\text{\ensuremath{\hat{x}_{i}}}$
+\end_inset
+
+ is:
+\begin_inset Formula 
+\begin{align*}
+\hat{x}_{i} & =f\left(0\right)=a_{0}\\
+ & =\theta^{T}x,
+\end{align*}
+
+\end_inset
+
+where 
+\begin_inset Formula $\theta^{T}$
+\end_inset
+
+ is the first row of matrix 
+\begin_inset Formula $\Theta$
+\end_inset
+
+:
+\begin_inset Formula 
+\begin{align*}
+\Theta & =\left(K^{T}K\right)^{-1}K^{T}.
+\end{align*}
+
+\end_inset
+
+As we can see, the matrix 
+\begin_inset Formula $\Theta$
+\end_inset
+
+ is independent of 
+\begin_inset Formula $x$
+\end_inset
+
+ so it can be used for any point 
+\begin_inset Formula $x_{i}$
+\end_inset
+
+ making this method very efficient.
+ For the smoothed value only the first row of 
+\begin_inset Formula $\Theta$
+\end_inset
+
+ is needed, the rest rows can be used for the derivatives of the smoothed
+ data up to order 
+\begin_inset Formula $d$
+\end_inset
+
+.
+ This paper only discuss the value (or the 
+\begin_inset Formula $0$
+\end_inset
+
+th derivative), so we will only focus on the first row 
+\begin_inset Formula $\theta$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Section
+Cyclic Savitzky-Golay
+\end_layout
+
+\begin_layout Standard
+Suppose that our data flattens out to a constant 
+\begin_inset Formula $c$
+\end_inset
+
+ towards both ends, such that:
+\begin_inset Formula 
+\[
+\lim_{i\rightarrow0}x_{i}=\lim_{i\rightarrow I}x_{i}=c.
+\]
+
+\end_inset
+
+We can further define a cyclic version of the data 
+\begin_inset Formula $y$
+\end_inset
+
+, such that:
+\begin_inset Formula 
+\begin{align*}
+y_{i} & =\begin{cases}
+x_{i+I} & i<0\\
+x_{i} & 0\le i\le I\\
+x_{i-I} & i>I
+\end{cases}\\
+i & \in\left\{ -r,\,\dots,\,0,\ \dots,\ I,\ \dots,\ I+r\right\} .
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+After that, the smoothed value for any 
+\begin_inset Formula $x_{i}$
+\end_inset
+
+ is just:
+\begin_inset Formula 
+\[
+\hat{x}_{i}=\theta^{T}\chi_{i},
+\]
+
+\end_inset
+
+where vector 
+\begin_inset Formula $\chi_{i}$
+\end_inset
+
+ is defined as:
+\begin_inset Formula 
+\[
+\chi_{i}=\left[\begin{array}{c}
+y_{i-d}\\
+\vdots\\
+y_{i}\\
+\vdots\\
+y_{i+d}
+\end{array}\right].
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Both ends flatten to the same constant is too strong a condition, we can
+ relax this condition to only requiring that both ends flatten to a constant.
+ Let's denote the two constants at left and right as 
+\begin_inset Formula $c_{l}$
+\end_inset
+
+ and 
+\begin_inset Formula $c_{r}$
+\end_inset
+
+, respectively.
+ The idea is to force 
+\begin_inset Formula $c_{l}=c_{r}$
+\end_inset
+
+ by tilting the data, and after the smoothing, the data is tilted back in
+ the reverse direction.
+ Formally, let's define the tilting magnitudes as:
+\begin_inset Formula 
+\[
+t_{i}=\frac{i}{I}\left(c_{l}-c_{r}\right),
+\]
+
+\end_inset
+
+and the tilted data 
+\begin_inset Formula $x'_{i}$
+\end_inset
+
+ is:
+\begin_inset Formula 
+\[
+x'_{i}=x_{i}+t_{i}.
+\]
+
+\end_inset
+
+Suppose the smoothed data after tilt is 
+\begin_inset Formula $\hat{x}'_{i}$
+\end_inset
+
+, then the smoothed data after reverse title is:
+\begin_inset Formula 
+\[
+\hat{x}_{i}=\hat{x_{i}}'-t_{i}.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Roughness
+\end_layout
+
+\begin_layout Standard
+Sometimes we are interested at the difference between the data and its smoothed
+ values as an indicator of the roughness of the data.
+ The larger the difference, the rougher (or less smooth) the data is.
+ 
+\end_layout
+
+\begin_layout Standard
+Let's define the cyclic version of the tilt magnitude as: 
+\begin_inset Formula 
+\begin{align*}
+s_{i} & =\begin{cases}
+t_{i+I} & i<0\\
+t_{i} & 0\le i\le I\\
+t_{i-I} & i>I
+\end{cases}\\
+i & \in\left\{ -r,\,\dots,\,0,\ \dots,\ I,\ \dots,\ I+r\right\} ,
+\end{align*}
+
+\end_inset
+
+and tilt window vector centered at 
+\begin_inset Formula $i$
+\end_inset
+
+th point as:
+\begin_inset Formula 
+\[
+\tau_{i}=\left[\begin{array}{c}
+s_{i-d}\\
+\vdots\\
+s_{i}\\
+\vdots\\
+s_{i+d}
+\end{array}\right].
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The smoothed data for 
+\begin_inset Formula $x_{i}$
+\end_inset
+
+ is:
+\begin_inset Formula 
+\begin{align*}
+\hat{x}_{i} & =\theta^{T}\left(\chi_{i}+\tau_{i}\right)-t_{i},\\
+i & \in\left\{ 0,\ \dots,\ I\right\} .
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+As a result the difference, or error is:
+\begin_inset Formula 
+\begin{align*}
+e_{i} & =x_{i}-\hat{x}_{i}\\
+ & =x_{i}+t_{i}-\theta^{T}\left(\chi_{i}+\tau_{i}\right)\\
+ & =x_{i}-\theta^{T}\chi_{i}+\left(t_{i}-\theta^{T}\tau_{i}\right),
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Let's define:
+\begin_inset Formula 
+\begin{align*}
+\phi & =\left[\begin{array}{c}
+0\\
+\vdots\\
+1\\
+\vdots\\
+0
+\end{array}\right]-\theta=\left[\begin{array}{c}
+0\\
+\vdots\\
+1\\
+\vdots\\
+0
+\end{array}\right]-\left[\begin{array}{c}
+\theta_{-d}\\
+\vdots\\
+\theta_{0}\\
+\vdots\\
+\theta_{d}
+\end{array}\right],
+\end{align*}
+
+\end_inset
+
+then the error can be reformulated as:
+\begin_inset Formula 
+\begin{align*}
+e_{i} & =x_{i}-\theta^{T}\chi_{i}+\left(t_{i}-\theta^{T}\tau_{i}\right)\\
+ & =\phi^{T}\chi_{i}+\phi^{T}\tau_{i}\\
+ & =\phi^{T}\left(\chi_{i}+\tau_{i}\right).
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+We can further take the norm of 
+\begin_inset Formula $e_{i}$
+\end_inset
+
+ to quantify the roughness of the data.
+ The smoother is parameterized by the bandwidth 
+\begin_inset Formula $b$
+\end_inset
+
+, so is the roughness.
+ How does 
+\begin_inset Formula $b$
+\end_inset
+
+ control the meaning of the roughness obtained? On a high level, 
+\begin_inset Formula $b$
+\end_inset
+
+ can be roughly considered as a wave length threshold, waves with wave length
+ less than 
+\begin_inset Formula $b$
+\end_inset
+
+ will all be considered as noise and contribute to the total error.
+ This error measure is superior to integral of the second derivative commonly
+ used in smoothing spline, as we have more control over how we want to set
+ local details as noise.
+ 
+\end_layout
+
+\end_body
+\end_document
